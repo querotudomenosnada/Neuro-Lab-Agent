@@ -1,5 +1,4 @@
- 
-name: Build APK from ZIP (no gradlew)
+ name: Build APK from ZIP (no gradlew)
 
 on:
   push:
