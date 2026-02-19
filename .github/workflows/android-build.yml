@@ -27,33 +27,34 @@ jobs:
           echo "=== FIND gradlew ==="
           find extracted -maxdepth 6 -type f -name gradlew -print || true
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Locate project root
-        id: locate
+      - name: Find project dir (settings.gradle)
         run: |
-          GRADLEW_PATH="$(find extracted -maxdepth 6 -type f -name gradlew | head -n 1)"
-          if [ -z "$GRADLEW_PATH" ]; then
-            echo "ERROR: gradlew not found inside ZIP"
+          PROJECT_DIR="$(dirname "$(find extracted -maxdepth 6 -type f $$ -name settings.gradle -o -name settings.gradle.kts $$ | head -n 1)")"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: settings.gradle não encontrado dentro de extracted/"
             exit 1
           fi
-          PROJECT_DIR="$(dirname "$GRADLEW_PATH")"
-          echo "project_dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Project dir: $PROJECT_DIR"
 
-      - name: Grant Gradle permission
+      - name: Install Gradle
         run: |
-          chmod +x "${{ steps.locate.outputs.project_dir }}/gradlew"
+          sudo apt-get update
+          sudo apt-get install -y curl unzip
+          curl -sLo gradle.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle.zip -d $HOME/gradle
+          echo "$HOME/gradle/gradle-8.7/bin" >> $GITHUB_PATH
 
-      - name: Build Debug APK
-        working-directory: ${{ steps.locate.outputs.project_dir }}
-        run: ./gradlew assembleDebug
+      - name: Build Debug APK (no wrapper)
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NeuroLabAgent-APK
-          path: ${{ steps.locate.outputs.project_dir }}/app/build/outputs/apk/debug/app-debug.apk
+          path: "**/app/build/outputs/apk/debug/app-debug.apk"
